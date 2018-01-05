@@ -36,11 +36,11 @@
 #include <getopt.h>		/* for getopt_long */
 #include <unistd.h>		/* for getopt */
 #else
+
+#include "cubridcore_export.h"
+
 #if !defined(WINDOWS)
 #include <sys/cdefs.h>
-#define DllImport
-#else
-#define DllImport  __declspec(dllimport)
 #endif
 
 /*
@@ -50,7 +50,7 @@
 #define required_argument  1
 #define optional_argument  2
 
-struct option
+struct CUBRIDCORE_EXPORT option
 {
   /* name of long option */
   const char *name;
@@ -70,15 +70,15 @@ extern "C"
 {
 #endif
 
-  int getopt (int, char *const *, const char *);
-  int getopt_long (int, char *const *, const char *, const struct option *, int *);
+  CUBRIDCORE_EXPORT int getopt (int, char *const *, const char *);
+  CUBRIDCORE_EXPORT int getopt_long (int, char *const *, const char *, const struct option *, int *);
 
 /* On some platforms, this is in libc, but not in a system header */
-  extern DllImport int optreset;
-  extern DllImport char *optarg;
-  extern DllImport int opterr;
-  extern DllImport int optind;
-  extern DllImport int optopt;
+  CUBRIDCORE_EXPORT extern int optreset;
+  CUBRIDCORE_EXPORT extern char *optarg;
+  CUBRIDCORE_EXPORT extern int opterr;
+  CUBRIDCORE_EXPORT extern int optind;
+  CUBRIDCORE_EXPORT extern int optopt;
 
 #ifdef __cplusplus
 }

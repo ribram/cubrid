@@ -48,11 +48,11 @@
 #ifdef __weak_alias
 __weak_alias (getopt, _getopt)
 #endif
-     int opterr = 1;		/* if error message should be printed */
-     int optind = 1;		/* index into parent argv vector */
-     int optopt = '?';		/* character checked for validity */
-     int optreset;		/* reset getopt */
-     char *optarg = NULL;	/* argument associated with option */
+     CUBRIDCORE_EXPORT int opterr = 1;	/* if error message should be printed */
+     CUBRIDCORE_EXPORT int optind = 1;	/* index into parent argv vector */
+     CUBRIDCORE_EXPORT int optopt = '?';	/* character checked for validity */
+     CUBRIDCORE_EXPORT int optreset;	/* reset getopt */
+     CUBRIDCORE_EXPORT char *optarg = NULL;	/* argument associated with option */
 #endif
 
 #ifdef __weak_alias

@@ -15,19 +15,32 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
+include (GenerateExportHeader)
 
-if(UNIX)
-  set(CCI_APPLIER_SOURCES
-    ${TOOLS_DIR}/cci_applier.c
-    )
-  SET_SOURCE_FILES_PROPERTIES(
-    ${CCI_APPLIER_SOURCES}
-    PROPERTIES LANGUAGE CXX
-    )
-  add_executable(cci_applier ${CCI_APPLIER_SOURCES})
-  target_link_libraries(cci_applier cascci)
-  target_link_libraries(cci_applier PRIVATE cubridcore)
+set(CORE_SOURCE_FILES
+  ${CORE_DIR}/cubrid_getopt_long.c
+)
+SET_SOURCE_FILES_PROPERTIES(
+  ${CORE_SOURCE_FILES}
+  PROPERTIES LANGUAGE CXX
+)
+set(CORE_SOURCE_HEADERS
+ ${CORE_DIR}/cubrid_getopt.h 
+)
 
-  install(TARGETS cci_applier
-    RUNTIME DESTINATION ${CUBRID_BINDIR} COMPONENT Application)
-endif(UNIX)
+add_library(cubridcore SHARED
+  ${CORE_SOURCE_FILES}
+  ${CORE_SOURCE_HEADERS}
+)
+generate_export_header(cubridcore
+  #EXPORT_FILE_NAME ${CMAKE_EXPORTS_DIR}/cubridcore_export.h
+)
+target_include_directories(cubridcore PUBLIC
+  ${CORE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+function(_cubridcore_link depender_target prv_or_pub)
+  target_link_libraries(${depender_target} ${prv_or_pub} cubridcore)
+  target_include_directories(${depender_target} ${CUBRIDCORE_INCLUDE_DIR})
+endfunction(_cubridcore_link)

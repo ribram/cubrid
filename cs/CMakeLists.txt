@@ -71,7 +71,6 @@ set(BASE_SOURCES
   ${BASE_DIR}/error_manager.c
   ${BASE_DIR}/fault_injection.c
   ${BASE_DIR}/fixed_alloc.c
-  ${BASE_DIR}/cubrid_getopt_long.c
   ${BASE_DIR}/ini_parser.c
   ${BASE_DIR}/intl_support.c
   ${BASE_DIR}/language_support.c
@@ -355,6 +354,7 @@ if(UNIX)
 else(UNIX)
   target_link_libraries(cubridcs LINK_PRIVATE cas ${EP_LIBS})
 endif(UNIX)
+target_link_libraries(cubridcs PUBLIC cubridcore)
 
 add_dependencies(cubridcs gen_csql_grammar gen_csql_lexer gen_loader_grammar gen_loader_lexer)
 
