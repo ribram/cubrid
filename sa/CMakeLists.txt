@@ -98,7 +98,6 @@ set(BASE_SOURCES
   ${BASE_DIR}/misc_string.c
   ${BASE_DIR}/string_buffer.cpp
   ${BASE_DIR}/variable_string.c
-  ${BASE_DIR}/cubrid_getopt_long.c
   ${BASE_DIR}/binaryheap.c
   ${BASE_DIR}/tsc_timer.c
   ${BASE_DIR}/perf.c
@@ -406,6 +405,7 @@ if(UNIX)
 else(UNIX)
   target_link_libraries(cubridsa LINK_PRIVATE cas ${EP_LIBS})
 endif(UNIX)
+target_link_libraries(cubridsa PRIVATE cubridcore)
 
 add_dependencies(cubridsa gen_csql_grammar gen_csql_lexer gen_loader_grammar gen_loader_lexer)
 

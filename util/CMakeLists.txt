@@ -43,7 +43,6 @@ set(CSQL_SOURCES
   ${EXECUTABLES_DIR}/csql_launcher.c
   ${EXECUTABLES_DIR}/util_support.c
   ${BASE_DIR}/porting.c
-  ${BASE_DIR}/cubrid_getopt_long.c
   )
 
 SET_SOURCE_FILES_PROPERTIES(
@@ -65,7 +64,7 @@ endif(UNIX)
 if(UNIX)
   add_dependencies(csql ${EP_TARGETS})
 endif(UNIX)
-
+target_link_libraries(csql PRIVATE cubridcore)
 
 set(CUB_MASTER_SOURCES
   ${EXECUTABLES_DIR}/master.c
@@ -125,14 +124,6 @@ SET_SOURCE_FILES_PROPERTIES(
   ${CUBRID_SOURCES}
   PROPERTIES LANGUAGE CXX
   )
-if(WIN32)
-  list(APPEND CUBRID_SOURCES ${BASE_DIR}/cubrid_getopt_long.c)
-  SET_SOURCE_FILES_PROPERTIES(
-    ${BASE_DIR}/cubrid_getopt_long.c
-    PROPERTIES LANGUAGE CXX
-  )
-  list(APPEND CUBRID_SOURCES ${CMAKE_BINARY_DIR}/version.rc)
-endif(WIN32)
 add_executable(cubrid-bin ${CUBRID_SOURCES})
 
 if(WIN32)
@@ -145,6 +136,7 @@ if(WIN32)
 endif(WIN32)
 set_target_properties(cubrid-bin PROPERTIES OUTPUT_NAME cubrid)
 target_link_libraries(cubrid-bin LINK_PRIVATE cubridsa)
+target_link_libraries(cubrid-bin PRIVATE cubridcore)
 
 
 set(CUB_COMMDB_SOURCES
@@ -201,7 +193,6 @@ endif(UNIX)
 set(CUB_ADMIN_SOURCES
   ${EXECUTABLES_DIR}/util_admin.c
   ${EXECUTABLES_DIR}/util_support.c
-  ${BASE_DIR}/cubrid_getopt_long.c
   ${BASE_DIR}/porting.c
   )
   
@@ -214,8 +205,6 @@ if(WIN32)
   list(APPEND CUB_ADMIN_SOURCES ${CMAKE_BINARY_DIR}/version.rc)
 endif(WIN32)
 
-
-
 add_executable(cub_admin ${CUB_ADMIN_SOURCES})
 target_include_directories(cub_admin PRIVATE ${EP_INCLUDES})
 target_link_libraries(cub_admin LINK_PRIVATE ${CMAKE_DL_LIBS})
@@ -224,6 +213,7 @@ if(UNIX)
 else(UNIX)
   target_link_libraries(cub_admin LINK_PRIVATE ws2_32)
 endif(UNIX)
+target_link_libraries(cub_admin PRIVATE cubridcore)
 
 set(CUBRID_ESQL_SOURCES
   ${BISON_esql_grammar_OUTPUTS}
@@ -270,7 +260,6 @@ set(GENCAT_SOURCES
   ${EXECUTABLES_DIR}/gencat.c
   )
 if(WIN32)
-  list(APPEND GENCAT_SOURCES ${BASE_DIR}/cubrid_getopt_long.c)
   list(APPEND GENCAT_SOURCES ${CMAKE_BINARY_DIR}/version.rc)
 endif(WIN32)
 add_executable(gencat ${GENCAT_SOURCES})
@@ -279,7 +268,7 @@ if(WIN32)
   target_include_directories(gencat PRIVATE ${CMAKE_SOURCE_DIR}/win/gencat)
   target_link_libraries(gencat LINK_PRIVATE ws2_32)
 endif(WIN32)
-
+target_link_libraries(gencat PRIVATE cubridcore)
 
 set(CONVERT_PASSWORD_SOURCES ${EXECUTABLES_DIR}/convert_password.c)
 SET_SOURCE_FILES_PROPERTIES(

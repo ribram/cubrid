@@ -19,7 +19,6 @@
 if(UNIX)
   set(CCI_APPLIER_SOURCES
     ${TOOLS_DIR}/cci_applier.c
-    ${BASE_DIR}/cubrid_getopt_long.c
     )
   SET_SOURCE_FILES_PROPERTIES(
     ${CCI_APPLIER_SOURCES}
@@ -27,6 +26,7 @@ if(UNIX)
     )
   add_executable(cci_applier ${CCI_APPLIER_SOURCES})
   target_link_libraries(cci_applier cascci)
+  target_link_libraries(cci_applier PRIVATE cubridcore)
 
   install(TARGETS cci_applier
     RUNTIME DESTINATION ${CUBRID_BINDIR} COMPONENT Application)

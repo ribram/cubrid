@@ -543,8 +543,6 @@ EXPORTS
     lang_set_parser_use_client_charset
     msgcat_gets
     msgcat_open
-    optarg
-    optind
     parser_create_parser
     parser_parse_string
     pt_append_string

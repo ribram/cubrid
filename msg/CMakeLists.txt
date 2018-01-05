@@ -36,30 +36,34 @@ set(LOCALE_DIRS
 foreach(locale ${LOCALE_DIRS})
   add_custom_command(
     OUTPUT ${locale}/cubrid.cat
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
-    COMMAND gencat ${locale}/cubrid.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/cubrid.msg
     COMMENT "Generating cubrid.cat for ${locale}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
+    COMMAND ${CMAKE_COMMAND} -E echo "gencat ${locale}/cubrid.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/cubrid.msg"
+    COMMAND gencat ${locale}/cubrid.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/cubrid.msg
     DEPENDS gencat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/cubrid.msg
     )
   add_custom_command(
     OUTPUT ${locale}/csql.cat
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
-    COMMAND gencat ${locale}/csql.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/csql.msg
     COMMENT "Generating csql.cat for ${locale}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
+    COMMAND ${CMAKE_COMMAND} -E echo "gencat ${locale}/csql.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/csql.msg"
+    COMMAND gencat ${locale}/csql.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/csql.msg
     DEPENDS gencat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/csql.msg
     )
   add_custom_command(
     OUTPUT ${locale}/utils.cat
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
-    COMMAND gencat ${locale}/utils.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/utils.msg
     COMMENT "Generating utils.cat for ${locale}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
+    COMMAND ${CMAKE_COMMAND} -E echo "gencat ${locale}/utils.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/utils.msg"
+    COMMAND gencat ${locale}/utils.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/utils.msg
     DEPENDS gencat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/utils.msg
     )
   add_custom_command(
     OUTPUT ${locale}/esql.cat
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
-    COMMAND gencat ${locale}/esql.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/esql.msg
     COMMENT "Generating esql.cat for ${locale}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${locale}
+    COMMAND ${CMAKE_COMMAND} -E echo "gencat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/esql.msg"
+    COMMAND gencat ${locale}/esql.cat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/esql.msg
     DEPENDS gencat ${CMAKE_CURRENT_SOURCE_DIR}/${locale}/esql.msg
     )
   add_custom_target(gen_msgs_${locale} ALL DEPENDS ${locale}/cubrid.cat ${locale}/csql.cat ${locale}/utils.cat ${locale}/esql.cat)
