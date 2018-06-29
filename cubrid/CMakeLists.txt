@@ -175,6 +175,7 @@ set(COMMUNICATION_HEADERS
 
 set(MONITOR_SOURCES
   ${MONITOR_DIR}/monitor_collect.cpp
+  ${MONITOR_DIR}/monitor_multidim.cpp
   ${MONITOR_DIR}/monitor_registration.cpp
   ${MONITOR_DIR}/monitor_statistic.cpp
   ${MONITOR_DIR}/monitor_transaction.cpp
@@ -182,6 +183,7 @@ set(MONITOR_SOURCES
 set(MONITOR_HEADERS
   ${MONITOR_DIR}/monitor_collect.hpp
   ${MONITOR_DIR}/monitor_definition.hpp
+  ${MONITOR_DIR}/monitor_multidim.hpp
   ${MONITOR_DIR}/monitor_registration.hpp
   ${MONITOR_DIR}/monitor_statistic.hpp
   ${MONITOR_DIR}/monitor_transaction.hpp
