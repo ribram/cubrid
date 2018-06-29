@@ -23,7 +23,4 @@
 
 namespace cubmonitor
 {
-  const dimension SAMPLE_DIM;
-
-  using sample_multidim = multidim_statistic<amount_accumulator_statistic, SAMPLE_DIM>;
 }  // namespace cubmonitor

@@ -30,25 +30,60 @@
 #include "monitor_definition.hpp"
 #include "monitor_registration.hpp"
 
-#include <string>
-#include <vector>
-
 namespace cubmonitor
 {
-  using dimension = std::vector<std::string>;
-
-  template <typename S, dimension ... Ds>
-  class multidim_statistic
+  template <class S, std::size_t N>
+  class array_statistics
   {
-      // todo
+    public:
+      using subtype = S;
+      static const std::size_t SIZE = N;
+
+      subtype &operator[] (std::size_t index);
+
+      // fetch/registration interface
+      inline void fetch (statistic_value *destination, fetch_mode mode = FETCH_GLOBAL) const;
+      std::size_t get_statistics_count (void) const;
+
+    private:
+      subtype m_array[SIZE];
   };
 
+  //////////////////////////////////////////////////////////////////////////
+  // Template/inline implementation
+  //////////////////////////////////////////////////////////////////////////
 
-  //template <typename S, dimension D>
-  //using array_statistic = multidim_statistic<S, D>;
+  template <class S, std::size_t N>
+  typename array_statistics<S, N>::subtype &
+  array_statistics<S, N>::operator[] (std::size_t index)
+  {
+    return m_array[index];
+  }
 
-  //using sample_array = array_statistic<amount_accumulator_statistic, SAMPLE_DIM>;
+  template <class S, std::size_t N>
+  std::size_t
+  array_statistics<S, N>::get_statistics_count (void) const
+  {
+    std::size_t total_count = 0;
+    for (std::size_t i = 0; i < SIZE; i++)
+      {
+	total_count += m_array[i].get_statistics_count ();
+      }
+    return total_count;
+  }
 
+  template <class S, std::size_t N>
+  void
+  array_statistics<S, N>::fetch (statistic_value *destination, fetch_mode mode /* = FETCH_GLOBAL */) const
+  {
+    statistic_value *statsp = destination;
+    for (std::size_t i = 0; i < SIZE; i++)
+      {
+	m_array[index].fetch (statsp, mode);
+	statsp += m_array[index].get_statistics_count ();
+      }
+    assert (statsp - destination == get_statistics_count ());
+  }
 
 } // namespace cubmonitor
 
