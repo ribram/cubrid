@@ -20,6 +20,7 @@
 #include "monitor_collect.hpp"
 #include "monitor_registration.hpp"
 #include "monitor_transaction.hpp"
+#include "monitor_multidim.hpp"
 #include "thread_manager.hpp"
 
 #include <thread>
@@ -33,16 +34,21 @@ static void test_transaction (void);
 static void test_registration (void);
 static void test_collect (void);
 static void test_boot_mockup (void);
+static void test_array_stats (void);
 
 int
 main (int, char **)
 {
+#if 0
   test_single_statistics_no_concurrency ();
   test_multithread_accumulation ();
   test_transaction ();
   test_registration ();
   test_collect ();
   test_boot_mockup ();
+#endif
+
+  test_array_stats ();
 
   std::cout << "test successful" << std::endl;
 }
@@ -667,4 +673,38 @@ test_boot_mockup (void)
   delete time_acc_stats;
   delete peek_values;
   delete ctm_stats;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// test_array_stats
+//////////////////////////////////////////////////////////////////////////
+
+enum class myenum { _0, _1 };
+
+class my_enum_def
+{
+  public:
+    using enum_type = myenum;
+    static const std::size_t SIZE = 2;
+
+    static std::size_t to_index (enum_type e)
+    {
+      return (std::size_t) e;
+    }
+};
+
+void
+test_array_stats (void)
+{
+  using namespace cubmonitor;
+
+  // create an array of an array of amount_accumulator_statistic
+  using my_estat = enumerated_array_statistics<amount_accumulator_statistic, my_enum_def>;
+  using my_estat_2 = enumerated_array_statistics<my_estat, my_enum_def>;
+
+  my_estat_2 statcol;
+
+  statcol[myenum::_0][myenum::_1].collect (1);
+
+  // so far so good...
 }
