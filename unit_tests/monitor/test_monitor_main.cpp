@@ -39,14 +39,12 @@ static void test_array_stats (void);
 int
 main (int, char **)
 {
-#if 0
   test_single_statistics_no_concurrency ();
   test_multithread_accumulation ();
   test_transaction ();
   test_registration ();
   test_collect ();
   test_boot_mockup ();
-#endif
 
   test_array_stats ();
 
