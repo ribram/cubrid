@@ -134,7 +134,7 @@ namespace cubmonitor
   class enumerated_array_statistics : public array_statistics<S, IE::SIZE>
   {
     public:
-      value_type &operator[] (typename IE::enum_type e)
+      typename array_statistics<S, IE:: SIZE>::value_type &operator[] (typename IE::enum_type e)
       {
 	return this->array_statistics<S, IE::SIZE>::operator[] (IE::to_index (e));
       }
