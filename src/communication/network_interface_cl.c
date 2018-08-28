@@ -2454,7 +2454,7 @@ tran_server_commit (bool retain_lock)
 {
 #if defined(CS_MODE)
   TRAN_STATE tran_state = TRAN_UNACTIVE_UNKNOWN;
-  int req_error, tran_state_int, reset_on_commit;
+  int req_error, tran_state_int, should_conn_reset;
   int i = 0;
   char *ptr;
   OR_ALIGNED_BUF (OR_INT_SIZE	/* retain_lock */
@@ -2493,8 +2493,8 @@ tran_server_commit (bool retain_lock)
     {
       ptr = or_unpack_int (reply, &tran_state_int);
       tran_state = (TRAN_STATE) tran_state_int;
-      ptr = or_unpack_int (ptr, &reset_on_commit);
-      if (reset_on_commit != 0 && log_does_allow_replication ())
+      ptr = or_unpack_int (ptr, &should_conn_reset);
+      if (should_conn_reset != 0 && log_does_allow_replication ())
 	{
 	  /* 
 	   * fail-back action
@@ -2533,7 +2533,7 @@ tran_server_abort (void)
 {
 #if defined(CS_MODE)
   TRAN_STATE tran_state = TRAN_UNACTIVE_UNKNOWN;
-  int req_error, tran_state_int, reset_on_commit;
+  int req_error, tran_state_int, should_conn_reset;
   char *ptr;
   OR_ALIGNED_BUF (OR_INT_SIZE + OR_INT_SIZE) a_reply;
   char *reply;
@@ -2549,8 +2549,8 @@ tran_server_abort (void)
     {
       ptr = or_unpack_int (reply, &tran_state_int);
       tran_state = (TRAN_STATE) tran_state_int;
-      ptr = or_unpack_int (ptr, &reset_on_commit);
-      if (reset_on_commit != 0 && log_does_allow_replication ())
+      ptr = or_unpack_int (ptr, &should_conn_reset);
+      if (should_conn_reset != 0 && log_does_allow_replication ())
 	{
 	  /* 
 	   * fail-back action
@@ -5181,16 +5181,30 @@ boot_soft_rename (const char *old_db_name, const char *new_db_name, const char *
 }
 
 /*
- * boot_copy -
+ * boot_copy () - copy the database to a new destination
  *
- * return:
+ * return : NO_ERROR if all OK, ER_ status otherwise
  *
- * NOTE:
+ *   fromdb_name(in): The database from where the copy is made.
+ *   newdb_name(in): Name of new database
+ *   newdb_path(in): Directory where the new database will reside
+ *   newlog_path(in): Directory where the log volumes of the new database will reside
+ *   new_lob_path(in): Directory where the lob volumes of the new database will reside
+ *   newdb_server_host(in): Server host where the new database reside
+ *   new_volext_path(in): A path is included if all volumes are placed in one place/directory. If NULL is given,
+ *                        - If file "fileof_vols_and_wherepaths" is given, the path is found in this file.
+ *                        - Each volume is copied to same place where the volume resides.
+ *                      Note: This parameter should be NULL, if the above file is given.
+ *   fileof_vols_and_wherepaths(in): A file is given when the user decides to control the copy/rename of the volume by
+ *                               individual bases. That is, user decides to spread the volumes over several locations and
+ *                               or to label the volumes with specific names.
+ *                               Each volume entry consists of: volid from_fullvolname to_fullvolname
+ *   newdb_overwrite(in): Whether to overwrite the new database if it already exist.
  */
 int
 boot_copy (const char *from_dbname, const char *new_db_name, const char *new_db_path, const char *new_log_path,
-	   const char *new_lob_path, const char *new_db_server_host, const char *new_volext_path,
-	   const char *fileof_vols_and_copypaths, bool new_db_overwrite)
+	   const char *new_lob_path, const char *new_db_server_host,
+	   const char *new_volext_path, const char *fileof_vols_and_copypaths, bool new_db_overwrite)
 {
 #if defined(CS_MODE)
   er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_ONLY_IN_STANDALONE, 1, "copy database");
@@ -6406,11 +6420,13 @@ qmgr_execute_query (const XASL_ID * xasl_id, QUERY_ID * query_idp, int dbval_cnt
   int req_error, senddata_size, replydata_size_listid, replydata_size_page, replydata_size_plan;
   char *request, *reply, *senddata = NULL;
   char *replydata_listid = NULL, *replydata_page = NULL, *replydata_plan = NULL, *ptr;
-  OR_ALIGNED_BUF (OR_XASL_ID_SIZE + OR_INT_SIZE * 4 + OR_CACHE_TIME_SIZE
-		  + EXECUTE_QUERY_MAX_ARGUMENT_DATA_SIZE) a_request;
-  OR_ALIGNED_BUF (OR_INT_SIZE * 4 + OR_PTR_ALIGNED_SIZE + OR_CACHE_TIME_SIZE) a_reply;
+  OR_ALIGNED_BUF (OR_XASL_ID_SIZE + OR_INT_SIZE * 5 + OR_CACHE_TIME_SIZE
+		  + OR_PTR_SIZE * NET_DEFER_END_QUERIES_MAX + EXECUTE_QUERY_MAX_ARGUMENT_DATA_SIZE) a_request;
+  OR_ALIGNED_BUF (OR_INT_SIZE * 7 + OR_PTR_ALIGNED_SIZE + OR_CACHE_TIME_SIZE) a_reply;
   int i, request_len;
   const DB_VALUE *dbval;
+  CACHE_TIME local_srv_cache_time;
+  int should_conn_reset, end_query_result, tran_state;
 
   request = OR_ALIGNED_BUF_START (a_request);
   reply = OR_ALIGNED_BUF_START (a_reply);
@@ -6455,6 +6471,32 @@ qmgr_execute_query (const XASL_ID * xasl_id, QUERY_ID * query_idp, int dbval_cnt
   ptr = or_pack_int (ptr, query_timeout);
 
   request_len = OR_XASL_ID_SIZE + OR_INT_SIZE * 4 + OR_CACHE_TIME_SIZE;
+  if (IS_QUERY_EXECUTE_WITH_COMMIT (flag))
+    {
+      assert (net_Deferred_end_queries_count <= NET_DEFER_END_QUERIES_MAX);
+      ptr = or_pack_int (ptr, net_Deferred_end_queries_count);
+      for (i = 0; i < net_Deferred_end_queries_count; i++)
+	{
+	  ptr = or_pack_ptr (ptr, net_Deferred_end_queries[i]);
+	}
+
+      request_len += OR_INT_SIZE + OR_PTR_SIZE * net_Deferred_end_queries_count;
+      net_Deferred_end_queries_count = 0;
+    }
+
+  /* Add message in log in case of autocommit transactions. It helps to trace query execution. */
+  if (prm_get_bool_value (PRM_ID_ER_LOG_DEBUG) && IS_TRAN_AUTO_COMMIT (flag))
+    {
+      if (IS_QUERY_EXECUTE_WITH_COMMIT (flag))
+	{
+	  er_log_debug (ARG_FILE_LINE, "qmgr_execute_query requested: EXECUTION_WITH_AUTOCOMMIT\n");
+	}
+      else
+	{
+	  er_log_debug (ARG_FILE_LINE, "qmgr_execute_query requested: EXECUTION_WITHOUT_AUTOCOMMIT\n");
+	}
+    }
+
   if (IS_QUERY_EXECUTED_WITHOUT_DATA_BUFFERS (flag))
     {
       /* Execute without data buffers. The data has small size. Include the data in the argument buffer. */
@@ -6494,7 +6536,26 @@ qmgr_execute_query (const XASL_ID * xasl_id, QUERY_ID * query_idp, int dbval_cnt
       /* third argument should be the same with replydata_size_plan ptr = or_unpack_int(ptr, &plan_size); */
       /* fourth argument should be query_id */
       ptr = or_unpack_ptr (reply + OR_INT_SIZE * 4, query_idp);
-      OR_UNPACK_CACHE_TIME (ptr, srv_cache_time);
+      OR_UNPACK_CACHE_TIME (ptr, &local_srv_cache_time);
+      if (srv_cache_time)
+	{
+	  memcpy (srv_cache_time, &local_srv_cache_time, sizeof (CACHE_TIME));
+	}
+
+      if (IS_QUERY_EXECUTE_WITH_COMMIT (flag))
+	{
+	  ptr = or_unpack_int (ptr, &end_query_result);
+	  ptr = or_unpack_int (ptr, &tran_state);
+	  ptr = or_unpack_int (ptr, &should_conn_reset);
+
+	  if (tran_state == TRAN_UNACTIVE_COMMITTED || tran_state == TRAN_UNACTIVE_COMMITTED_INFORMING_PARTICIPANTS
+	      || tran_state == TRAN_UNACTIVE_ABORTED || tran_state == TRAN_UNACTIVE_ABORTED_INFORMING_PARTICIPANTS)
+	    {
+	      net_cleanup_client_queues ();
+	    }
+
+	  tran_set_latest_query_status (end_query_result, tran_state, should_conn_reset);
+	}
 
       if (replydata_listid && replydata_size_listid)
 	{
