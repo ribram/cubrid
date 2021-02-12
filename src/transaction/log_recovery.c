@@ -6511,3 +6511,445 @@ log_rv_end_simulation (THREAD_ENTRY * thread_p)
   LOG_SET_CURRENT_TRAN_INDEX (thread_p, LOG_SYSTEM_TRAN_INDEX);
 #endif // SA_MODE
 }
+
+//
+// Mesaj pentru Cristi cu ce gasesti aici:
+//
+//  - declaratia pentru clasa log_reader, trebuie stearsa. am folosit-o ca sa compilez codul.
+//
+//  - multe functii helper templetizate/specializate dupa structurile de log recorduri (e.g. log_rec_redo).
+//  fiecare functie face cate o mica chestie, gen obtine rcv.length, sau rcv.mvccid, sau vpid, etc.
+//
+//  - functia log_rv_record_redo2 care este o extensie a log_rv_redo si care include cam toata partea comuna
+//  din fiecare case separat de redo. also templetizata dupa structura de log record.
+//
+//  - o functie care simuleaza log_recovery_redo, care trebuie stearsa. am folosit-o ca sa compilez codul.
+// 
+//
+
+// *INDENT-OFF*
+// C++ template functions
+
+// temporary declaration until merged with Cristi's work. remove me
+class log_reader
+{
+  public:
+    log_reader ();
+    void set_lsa (const log_lsa& lsa);
+    const char* get_cptr () const;
+    template <typename T>
+    void reinterpret_cptr (const T *& tptr) const;
+    void read_align ();  // equivalent to LOG_READ_ALIGN
+    void read_add_align (size_t size);
+    void advance_when_doesnt_fit (size_t size);
+    // and other read functions
+    template <typename T>
+    void read (const T& t);
+  private:
+    void fetch_page ();
+    void lsa_offset_align ();
+    log_lsa m_lsa = NULL_LSA;
+    log_page *m_page;
+    char m_area_buffer[IO_MAX_PAGE_SIZE + DOUBLE_ALIGNMENT];
+};
+
+//
+// Declarations
+//
+
+// Apply redo based on log record data.
+//
+// T is a log record type (e.g. log_rec_redo).
+// GetRedoDataArgs are variadic arguments that can be passed to the reading of redo data. Used for undoredo.
+//
+// logread tracks the position in log and reads log data.
+// logrec is the log record data.
+// allow_parallel will be either true or false. it may push the operation on another thread if true.
+// redo_unzip is used to store & decompress redo data.
+// rcv_lsa is the LSA of the log record
+// args are forwarded to the log_rv_rec_get_redo_data function.
+template <typename T, typename ... GetRedoDataArgs>
+static void
+log_rv_redo_record2 (THREAD_ENTRY *thread_p, log_reader &logread, const T &logrec, bool allow_parallel,
+		     LOG_ZIP &redo_unzip, const log_lsa &rcv_lsa, GetRedoDataArgs &... args);
+
+//
+// The following functions are helpers that each do a small logical operation. The logical operations can have slight
+// differences based on the log record type. Therefore, they are implemented as template functions with a default
+// behavior and there are overloads with different behaviors.
+//
+
+// Get a reference to the log_data of a log record (e.g. log_rec_redo).
+// It is usually the .data member.
+// For log_rec_mvcc_redo, log_rec_mvcc_undo, log_rec_mvcc_undoredo, it is nested inside another member.
+// For other types that don't have .data member, expect a compiler error
+template <typename T>	  // T is a log record type (e.g. log_rec_redo)
+static const log_data &log_rv_rec_get_data (const T &logrec);
+static const log_data &log_rv_rec_get_data (const log_rec_mvcc_redo &logrec);
+static const log_data &log_rv_rec_get_data (const log_rec_mvcc_undo &logrec);
+static const log_data &log_rv_rec_get_data (const log_rec_mvcc_undoredo &logrec);
+
+// Get the MVCCID from a log record (e.g. log_rec_redo).
+// Only MVCC log records have an MVCCID. For all other records the MVCCID is NULL.
+template <typename T>	  // T is a log record type (e.g. log_rec_redo)
+static MVCCID log_rv_rec_get_mvccid (const T &logrec);
+static MVCCID log_rv_rec_get_mvccid (const log_rec_mvcc_redo &logrec);
+static MVCCID log_rv_rec_get_mvccid (const log_rec_mvcc_undo &logrec);
+static MVCCID log_rv_rec_get_mvccid (const log_rec_mvcc_undoredo &logrec);
+
+// Get the offset from a log record data (e.g. log_rec_redo).
+// It is usually in log_rv_rec_get_data().offset.
+template <typename T>	  // T is a log record type (e.g. log_rec_redo)
+static PGLENGTH log_rv_rec_get_offset (const T &logrec);
+
+// Get the redo data length from a log record data (e.g. log_rec_redo).
+// It is usually stored in the .length member.
+// In log_rec_undoredo & log_rec_mvcc_undoredo is stored as .rlength
+// In log_rec_mvcc_redo & log_rec_mvcc_undoredo is nested in another field.
+template <typename T>	  // T is a log record type (e.g. log_rec_redo)
+static int log_rv_rec_get_redo_length (const T &logrec);
+static int log_rv_rec_get_redo_length (const log_rec_undoredo &logrec);
+static int log_rv_rec_get_redo_length (const log_rec_mvcc_undoredo &logrec);
+static int log_rv_rec_get_redo_length (const log_rec_mvcc_redo &logrec);
+
+// Get the redo data from log
+// Usually, there is only redo data that can be read from logreader.
+// For undoredo, there is also undo data before redo data. For the DIFF undoredo, the undo data must be read too.
+// For mvcc_undoredo, fall back to log_rv_rec_get_redo_data with logrec.undoredo argument.
+template <typename T, typename ... OtherArgs>
+static int log_rv_rec_get_redo_data (THREAD_ENTRY *thread_p, log_reader &logreader, const T &logrec, log_rcv &rcv,
+				     LOG_ZIP &redo_unzip, OtherArgs &... other_args);
+static int log_rv_rec_get_redo_data (THREAD_ENTRY *thread_p, log_reader &logreader, const log_rec_undoredo &logrec,
+				     log_rcv &rcv, LOG_ZIP &redo_unzip, LOG_RECTYPE rectype, LOG_ZIP &undo_unzip);
+static int log_rv_rec_get_redo_data (THREAD_ENTRY *thread_p, log_reader &logreader,
+				     const log_rec_mvcc_undoredo &logrec, log_rcv &rcv, LOG_ZIP &redo_unzip,
+				     LOG_RECTYPE rectype, LOG_ZIP &undo_unzip);
+
+// All log records need to apply redo function, except compensate log records.
+template <typename T>
+static bool log_rv_rec_do_redofun (const T &logrec);
+static bool log_rv_rec_do_redofun (const log_rec_compensate &logrec);
+
+// Get VPID from log data
+static void log_rv_get_vpid (const log_data &data, VPID &vpid_out);
+
+// Fix page & return true if redo is required. Return false if it the change is already there and unfix the page.
+static bool log_rv_fix_page_and_check_redo_is_needed (THREAD_ENTRY *thread_p, const VPID &vpid, const log_lsa &rcv_lsa,
+						      LOG_RCVINDEX rcvindex, log_rcv &rcv);
+
+//
+// Definitions
+//
+
+template <typename T> // T is a log record type (e.g. log_rec_redo)
+static const log_data &
+log_rv_rec_get_data (const T &logrec)
+{
+  return logrec.data;
+}
+
+static const log_data &
+log_rv_rec_get_data (const log_rec_mvcc_redo &logrec)
+{
+  return logrec.redo.data;
+}
+
+static const log_data &
+log_rv_rec_get_data (const log_rec_mvcc_undo &logrec)
+{
+  return logrec.undo.data;
+}
+
+static const log_data &
+log_rv_rec_get_data (const log_rec_mvcc_undoredo &logrec)
+{
+  return logrec.undoredo.data;
+}
+
+template<typename T> // T is a log record type (e.g. log_rec_redo)
+static MVCCID log_rv_rec_get_mvccid (const T &)
+{
+  return MVCCID_NULL; // no MVCCID
+}
+
+static MVCCID log_rv_rec_get_mvccid (const log_rec_mvcc_redo &logrec)
+{
+  return logrec.mvccid;
+}
+
+static MVCCID log_rv_rec_get_mvccid (const log_rec_mvcc_undo &logrec)
+{
+  return logrec.mvccid;
+}
+
+static MVCCID log_rv_rec_get_mvccid (const log_rec_mvcc_undoredo &logrec)
+{
+  return logrec.mvccid;
+}
+
+template <typename T>
+static PGLENGTH
+log_rv_rec_get_offset (const T &logrec)
+{
+  return log_rv_rec_get_data (logrec).offset;
+}
+
+template <typename T>
+static int
+log_rv_rec_get_redo_length (const T &logrec)
+{
+  return logrec.length;
+}
+
+static int
+log_rv_rec_get_redo_length (const log_rec_undoredo &logrec)
+{
+  return logrec.rlength;
+}
+
+static int
+log_rv_rec_get_redo_length (const log_rec_mvcc_undoredo &logrec)
+{
+  return logrec.undoredo.rlength;
+}
+
+static int
+log_rv_rec_get_redo_length (const log_rec_mvcc_redo &logrec)
+{
+  return logrec.redo.length;
+}
+
+static void
+log_rv_get_vpid (const log_data &data, VPID &vpid_out)
+{
+  vpid_out.volid = data.volid;
+  vpid_out.pageid = data.pageid;
+}
+
+static bool
+log_rv_fix_page_and_check_redo_is_needed (THREAD_ENTRY * thread_p, const VPID &vpid, const log_lsa &rcv_lsa,
+					  LOG_RCVINDEX rcvindex, log_rcv &rcv)
+{
+  assert (!VPID_ISNULL (&vpid));
+
+  rcv.pgptr = log_rv_redo_fix_page (thread_p, &vpid, rcvindex);
+  if (rcv.pgptr == NULL)
+    {
+      // deallocated. it means the page was changed and also deallocated in the meantime. no need to apply redo.
+      return false;
+    }
+
+  if (rcv_lsa <= *pgbuf_get_lsa (rcv.pgptr))
+    {
+      // the page LSA marker is more recent, therefore the change is already here; unfix the page
+      pgbuf_unfix_and_init (thread_p, rcv.pgptr);
+      return false;
+    }
+
+  return true;
+}
+
+template <typename T>
+static bool
+log_rv_rec_do_redofun (const T &logrec)
+{
+  return true;
+}
+
+static bool
+log_rv_rec_do_redofun (const log_rec_compensate &logrec)
+{
+  return false;
+}
+
+template <typename T, typename ... OtherArgs>
+static int
+log_rv_rec_get_redo_data (THREAD_ENTRY * thread_p, log_reader &logreader, const T &logrec, log_rcv &rcv,
+			  LOG_ZIP &redo_unzip, OtherArgs &... other_args)
+{
+  // Read data from current position in logreader.
+  return log_rv_get_unzip_and_diff_redo_log_data (thread_p, NULL, NULL /* replace the two nulls with logreader */, &rcv, 0, NULL, redo_unzip);
+}
+
+static int
+log_rv_rec_get_redo_data (THREAD_ENTRY *thread_p, log_reader &logreader, const log_rec_undoredo &logrec,
+			  log_rcv &rcv, LOG_ZIP &redo_unzip, LOG_RECTYPE rectype, LOG_ZIP &undo_unzip)
+{
+  // The current logreader position points to undo data, and redo data follows it.
+  // For the non-diff log records, it is enough to skip undo data and read the redo data.
+  // The the diff log records, undo data must be read too and then apply diff between undo and redo data to reconstruct
+  // the actual redo data.
+  bool need_diff_with_undo = (rectype == LOG_DIFF_UNDOREDO_DATA || rectype == LOG_MVCC_DIFF_UNDOREDO_DATA);
+  int err = NO_ERROR;
+
+  if (need_diff_with_undo)
+    {
+      // read undo data into undo_unzip
+      bool is_undo_zip;
+      err = log_rv_get_unzip_log_data (thread_p, logrec.ulength, NULL, NULL /* replace the two nulls with logreader */,
+				       &undo_unzip, is_undo_zip);
+      if (err != NO_ERROR)
+	{
+	  return err;
+	}
+      return log_rv_get_unzip_and_diff_redo_log_data (thread_p, NULL, NULL /* replace the two nulls with logreader */,
+						      &rcv, undo_unzip.data_length, undo_unzip.log_data, redo_unzip);
+    }
+  else
+    {
+      // need next function:
+      // log_reader.skip (static_cast<size_t> (GET_ZIP_LEN (logrec.ulength)));
+      return log_rv_get_unzip_and_diff_redo_log_data (thread_p, NULL, NULL /* replace the two nulls with logreader */,
+						      &rcv, 0, NULL, redo_unzip);
+    }
+}
+
+static int
+log_rv_rec_get_redo_data (THREAD_ENTRY *thread_p, log_reader &logreader, const log_rec_mvcc_undoredo &logrec,
+			  log_rcv &rcv, LOG_ZIP &redo_unzip, LOG_RECTYPE rectype, LOG_ZIP &undo_unzip)
+{
+  // Just the same as log_rv_rec_get_redo_data on log_rec_undoredo.
+  return log_rv_rec_get_redo_data (thread_p, logreader, logrec.undoredo, rcv, redo_unzip, rectype, undo_unzip);
+}
+
+template <typename T, typename ... GetRedoDataArgs>
+static void
+log_rv_redo_record2 (THREAD_ENTRY *thread_p, log_reader &logread, const T &logrec, bool allow_parallel,
+		     LOG_ZIP &redo_unzip, const log_lsa &rcv_lsa, GetRedoDataArgs &... args)
+{
+
+  // How things work:
+  //
+  //	There is a chance that the actual redo is pushed to another thread, if allow_parallel allows it.
+  //	If VPID is null, parallel apply is never used (logical redo records are more complicated to parallelize).
+  //
+  //	So first start by getting the page VPID and check if it is not null. If it is not null, try to push it on
+  //	another thread. If that does not happen, fix the page and check if change was already applied. If it was,
+  //	there is nothing to do here anymore.
+  //
+  //	If the change must be applied here and now, start populating the rest of the log_rcv structure fields. Helper
+  //	functions are used for each field.
+  //
+  //	There is a special thing with the log_rv_rec_get_redo_data. Usually, it only has to read redo data. In case of
+  //	undoredo log record types, it may also have to skip or read undo data and the function uses additional arguments
+  //	(hence GetRedoDataArgs).
+  //
+  //	Next the "redo" function must be called. It is usually the RV_fun[rcvindex].redofun function, with the
+  //	exception of compensate log record that has to call the undofun.
+  //
+  //	Finally, set the record LSA into the page to mark that the change has been applied.
+  //
+
+  VPID page_vpid;
+  const log_data &data = log_rv_rec_get_data (logrec);
+  log_rcv rcv = LOG_RCV_INITIALIZER;
+
+  log_rv_get_vpid (data, page_vpid);
+
+  if (!VPID_ISNULL (&page_vpid))
+    {
+      if (allow_parallel)
+	{
+	  // todo: push on parallel thread & return
+	}
+
+      if (!log_rv_fix_page_and_check_redo_is_needed (thread_p, page_vpid, rcv_lsa, data.rcvindex, rcv))
+	{
+	  // change is already there, redo not needed
+	  assert (rcv.pgptr == NULL);
+	  return;
+	}
+    }
+
+  rcv.length = log_rv_rec_get_redo_length (logrec);
+  rcv.mvcc_id = log_rv_rec_get_mvccid (logrec);
+  rcv.offset = log_rv_rec_get_offset (logrec);
+
+  int err = log_rv_rec_get_redo_data (thread_p, logread, logrec, rcv, redo_unzip,
+				      std::forward<GetRedoDataArgs> (args)...);
+  if (err != NO_ERROR)
+    {
+      // todo: migrate scope_exit from HA develop and avoid manually freeing rcv.pgptr
+      if (rcv.pgptr != NULL)
+	{
+	  pgbuf_unfix (thread_p, rcv.pgptr);
+	}
+      return;
+    }
+
+  if (log_rv_rec_do_redofun (logrec))
+    {
+      err = RV_fun[data.rcvindex].redofun (thread_p, &rcv);
+    }
+  else
+    {
+      err = RV_fun[data.rcvindex].undofun (thread_p, &rcv);
+    }
+  if (err != NO_ERROR)
+    {
+      logpb_fatal_error (thread_p, true, ARG_FILE_LINE,
+			 "log_rv_redo_record: Error applying redo record at log_lsa=(%lld, %d), "
+			 "rcv = {mvccid=%llu, vpid=(%d, %d), offset = %d, data_length = %d}",
+			 (long long int) (rcv.pgptr == NULL ? NULL_PAGEID : pgbuf_get_lsa (rcv.pgptr)->pageid),
+			 (int) (rcv.pgptr == NULL ? NULL_PAGEID : pgbuf_get_lsa (rcv.pgptr)->offset),
+			 (long long int) rcv.mvcc_id, (int) page_vpid.pageid, (int) page_vpid.volid,
+			 (int) rcv.offset, (int) rcv.length);
+    }
+  if (rcv.pgptr != NULL)
+    {
+      pgbuf_set_lsa(thread_p, rcv.pgptr, &rcv_lsa);
+      pgbuf_unfix (thread_p, rcv.pgptr);
+    }
+}
+
+// just an example, used to compile. remove me
+void
+simulate_recovery_redo (THREAD_ENTRY * thread_p, LOG_RECTYPE rectype)
+{
+  log_reader logreader;
+  LOG_ZIP *redo_unzip = log_zip_alloc (LOGAREA_SIZE);
+  LOG_ZIP *undo_unzip = log_zip_alloc (LOGAREA_SIZE);
+
+  log_lsa rcv_lsa;
+
+  switch (rectype)
+    {
+    case LOG_REDO_DATA:
+      log_rec_redo rec_redo;
+      logreader.read (rec_redo);
+      // do special redo thing
+      log_rv_redo_record2 (thread_p, logreader, rec_redo, false, *redo_unzip, rcv_lsa);
+      break;
+    case LOG_MVCC_REDO_DATA:
+      log_rec_mvcc_redo rec_mvcc_redo;
+      logreader.read (rec_mvcc_redo);
+      // do mvcc stuff
+      log_rv_redo_record2 (thread_p, logreader, rec_mvcc_redo, false, *redo_unzip, rcv_lsa);
+      break;
+    case LOG_UNDOREDO_DATA:
+    case LOG_DIFF_UNDOREDO_DATA:
+      log_rec_undoredo rec_undoredo;
+      logreader.read (rec_undoredo);
+      log_rv_redo_record2 (thread_p, logreader, rec_undoredo, false, *redo_unzip, rcv_lsa, rectype, *undo_unzip);
+      break;
+    case LOG_MVCC_UNDOREDO_DATA:
+    case LOG_MVCC_DIFF_UNDOREDO_DATA:
+      log_rec_mvcc_undoredo rec_mvcc_undoredo;
+      logreader.read (rec_mvcc_undoredo);
+      // do mvcc stuff
+      log_rv_redo_record2 (thread_p, logreader, rec_mvcc_undoredo, false, *redo_unzip, rcv_lsa, rectype, *undo_unzip);
+      break;
+    case LOG_RUN_POSTPONE:
+      log_rec_run_postpone rec_run_postpone;
+      logreader.read (rec_run_postpone);
+      log_rv_redo_record2 (thread_p, logreader, rec_run_postpone, false, *redo_unzip, rcv_lsa);
+      break;
+    case LOG_COMPENSATE:
+      log_rec_compensate rec_compensate;
+      logreader.read (rec_compensate);
+      log_rv_redo_record2 (thread_p, logreader, rec_compensate, false, *redo_unzip, rcv_lsa);
+      break;
+    }
+}
+
+// *INDENT-ON*
