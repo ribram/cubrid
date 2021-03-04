@@ -49,6 +49,7 @@
 #include "log_lsa.hpp"
 #include "log_postpone_cache.hpp"
 #include "log_prior_send.hpp"
+#include "log_prior_recv.hpp"
 #include "log_reader.hpp"
 #include "log_storage.hpp"
 #include "mvcc.h"
@@ -644,6 +645,9 @@ struct log_global
 
   // *INDENT-OFF*
   cublog::prior_sender m_prior_sender;
+#if defined (SERVER_MODE)
+  cublog::prior_recver m_prior_recver;
+#endif // SERVER_MODE = !SA_MODE
   // *INDENT-ON*
 
   // *INDENT-OFF*

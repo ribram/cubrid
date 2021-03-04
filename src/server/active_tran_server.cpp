@@ -1,6 +1,6 @@
 /*
  * Copyright 2008 Search Solution Corporation
- * Copyright 2021 CUBRID Corporation
+ * Copyright 2016 CUBRID Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,50 +16,31 @@
  *
  */
 
-#include "server_type.hpp"
+#include "active_tran_server.hpp"
 
 #include "communication_server_channel.hpp"
-#include "connection_defs.h"
 #include "error_manager.h"
-#include "system_parameter.h"
+#include "log_impl.h"
+#include "log_prior_send.hpp"
+#include "server_type.hpp"
 
-#include <string>
+#include <cassert>
+#include <functional>
 
-static SERVER_TYPE g_server_type;
+active_tran_server ats_Gl;
 
-SERVER_TYPE get_server_type ()
+static void assert_is_active_tran_server ();
+
+active_tran_server::~active_tran_server ()
 {
-  return g_server_type;
+  disconnect_page_server ();
 }
 
-// SERVER_MODE & SA_MODE have completely different behaviors.
-//
-// SERVER_MODE allows both transaction & page server types. SERVER_MODE transaction server communicates with the
-// SERVER_MODE page server.
-//
-// SA_MODE is considered a transaction server, but it is different from SERVER_MODE transaction type. It does not
-// communicate with the page server. The behavior needs further consideration and may be changed.
-//
-
-#if defined (SERVER_MODE)
-static std::string g_pageserver_hostname;
-static int g_pageserver_port;
-
-void init_page_server_hosts (const char *db_name);
-void connect_to_pageserver (std::string host, int port, const char *db_name);
-
-void init_server_type (const char *db_name)
+void
+active_tran_server::init_page_server_hosts (const char *db_name)
 {
-  g_server_type = (SERVER_TYPE) prm_get_integer_value (PRM_ID_SERVER_TYPE);
-  if (g_server_type == SERVER_TYPE_TRANSACTION)
-    {
-      init_page_server_hosts (db_name);
-    }
-}
+  assert_is_active_tran_server ();
 
-void init_page_server_hosts (const char *db_name)
-{
-  assert (g_server_type == SERVER_TYPE_TRANSACTION);
   std::string hosts = prm_get_string_value (PRM_ID_PAGE_SERVER_HOSTS);
 
   if (!hosts.length ())
@@ -91,18 +72,20 @@ void init_page_server_hosts (const char *db_name)
 	      hosts.c_str ());
       return;
     }
-  g_pageserver_port = port;
+  m_ps_port = port;
 
   // host and port seem to be OK
-  g_pageserver_hostname = hosts.substr (0, col_pos);
-  er_log_debug (ARG_FILE_LINE, "Page server hosts: %s port: %d\n", g_pageserver_hostname.c_str (), g_pageserver_port);
+  m_ps_hostname = hosts.substr (0, col_pos);
+  er_log_debug (ARG_FILE_LINE, "Page server hosts: %s port: %d\n", m_ps_hostname.c_str (), m_ps_port);
 
-  connect_to_pageserver (g_pageserver_hostname, g_pageserver_port, db_name);
+  connect_to_page_server (m_ps_hostname, m_ps_port, db_name);
 }
 
-void connect_to_pageserver (std::string host, int port, const char *db_name)
+int
+active_tran_server::connect_to_page_server (const std::string &host, int port, const char *db_name)
 {
-  assert (get_server_type () == SERVER_TYPE_TRANSACTION);
+  assert_is_active_tran_server ();
+  assert (!is_page_server_connected ());
 
   // connect to page server
   cubcomm::server_channel srv_chn (db_name);
@@ -113,21 +96,52 @@ void connect_to_pageserver (std::string host, int port, const char *db_name)
   if (comm_error_code != css_error_code::NO_ERRORS)
     {
       er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_NET_PAGESERVER_CONNECTION, 1, host.c_str());
-      return;
+      return ER_NET_PAGESERVER_CONNECTION;
     }
 
   if (!srv_chn.send_int (static_cast <int> (cubcomm::server_server::CONNECT_ACTIVE_TRAN_TO_PAGE_SERVER)))
     {
       er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_NET_PAGESERVER_CONNECTION, 1, host.c_str());
-      return;
+      return ER_NET_PAGESERVER_CONNECTION;
     }
+
+  page_server_conn ps_conn (std::move (srv_chn));
+  m_ps_request_queue = new page_server_request_queue (std::move (ps_conn));
+  m_ps_request_autosend = new page_server_request_autosend (*m_ps_request_queue);
+
+  log_Gl.m_prior_sender.add_sink (std::bind (&active_tran_server::push_request, std::ref (*this),
+				  ats_to_ps_request::SEND_LOG_PRIOR_LIST, std::placeholders::_1));
 }
 
-#else // !SERVER_MODE = SA_MODE
-
-void init_server_type (const char *)
+void
+active_tran_server::disconnect_page_server ()
 {
-  g_server_type = SERVER_TYPE_TRANSACTION;
+  assert_is_active_tran_server ();
+
+  delete m_ps_request_autosend;
+  m_ps_request_autosend = nullptr;
+
+  delete m_ps_request_queue;
+  m_ps_request_queue = nullptr;
 }
 
-#endif // !SERVER_MODE = SA_MODE
+bool
+active_tran_server::is_page_server_connected () const
+{
+  assert_is_active_tran_server ();
+  return m_ps_request_queue != nullptr;
+}
+
+void
+active_tran_server::push_request (ats_to_ps_request reqid, std::string &&payload)
+{
+  assert (is_page_server_connected ());
+
+  m_ps_request_queue->push (reqid, std::move (payload));
+}
+
+void
+assert_is_active_tran_server ()
+{
+  assert (get_server_type () == SERVER_TYPE::SERVER_TYPE_TRANSACTION);
+}
