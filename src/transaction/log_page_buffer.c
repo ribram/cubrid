@@ -79,6 +79,7 @@
 #include "error_manager.h"
 #include "xserver_interface.h"
 #include "perf_monitor.h"
+#include "server_type.hpp"
 #include "storage_common.h"
 #include "system_parameter.h"
 #include "memory_alloc.h"
@@ -6729,6 +6730,12 @@ logpb_checkpoint_topops (THREAD_ENTRY * thread_p, LOG_INFO_CHKPT_SYSOP * &chkpt_
 LOG_PAGEID
 logpb_checkpoint (THREAD_ENTRY * thread_p)
 {
+  if (get_server_type () == SERVER_TYPE_PAGE)
+    {
+      // TODO: reactivate once checkpoint is changed without log records
+      return NULL_LOG_PAGEID;
+    }
+
 #define detailed_er_log(...) if (detailed_logging) _er_log_debug (ARG_FILE_LINE, __VA_ARGS__)
 
   LOG_TDES *tdes;		/* System transaction descriptor */
