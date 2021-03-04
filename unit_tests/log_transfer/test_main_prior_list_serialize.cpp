@@ -454,7 +454,10 @@ LOG_CS_EXIT (THREAD_ENTRY *thread_p)
   assert (false);
 }
 
-log_global::log_global () = default;
+log_global::log_global ()
+  : m_prior_recver (prior_info)
+{
+}
 log_global::~log_global () = default;
 
 mvcc_active_tran::mvcc_active_tran () = default;
