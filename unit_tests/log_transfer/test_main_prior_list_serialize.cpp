@@ -454,6 +454,15 @@ LOG_CS_EXIT (THREAD_ENTRY *thread_p)
   assert (false);
 }
 
+namespace cublog
+{
+  prior_recver::prior_recver (log_prior_lsa_info &prior_lsa_info)
+    : m_prior_lsa_info (prior_lsa_info)
+  {
+  }
+  prior_recver::~prior_recver () = default;
+}
+
 log_global::log_global ()
   : m_prior_recver (prior_info)
 {
