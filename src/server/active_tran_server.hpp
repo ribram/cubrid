@@ -33,7 +33,7 @@ class active_tran_server
     active_tran_server () = default;
     ~active_tran_server ();
 
-    void init_page_server_hosts (const char *db_name);
+    int init_page_server_hosts (const char *db_name);
     int connect_to_page_server (const std::string &host, int port, const char *db_name);
     void disconnect_page_server ();
     bool is_page_server_connected () const;

@@ -45,7 +45,7 @@ active_tran_server::~active_tran_server ()
     }
 }
 
-void
+int
 active_tran_server::init_page_server_hosts (const char *db_name)
 {
   assert_is_active_tran_server ();
@@ -54,7 +54,8 @@ active_tran_server::init_page_server_hosts (const char *db_name)
 
   if (!hosts.length ())
     {
-      return;
+      // no page server
+      return NO_ERROR;
     }
 
   auto col_pos = hosts.find (":");
@@ -63,7 +64,7 @@ active_tran_server::init_page_server_hosts (const char *db_name)
     {
       er_set (ER_WARNING_SEVERITY, ARG_FILE_LINE, ER_HOST_PORT_PARAMETER, 2, prm_get_name (PRM_ID_PAGE_SERVER_HOSTS),
 	      hosts.c_str ());
-      return;
+      return ER_HOST_PORT_PARAMETER;
     }
 
   long port = -1;
@@ -79,7 +80,7 @@ active_tran_server::init_page_server_hosts (const char *db_name)
     {
       er_set (ER_WARNING_SEVERITY, ARG_FILE_LINE, ER_HOST_PORT_PARAMETER, 2, prm_get_name (PRM_ID_PAGE_SERVER_HOSTS),
 	      hosts.c_str ());
-      return;
+      return ER_HOST_PORT_PARAMETER;
     }
   m_ps_port = port;
 
@@ -87,7 +88,7 @@ active_tran_server::init_page_server_hosts (const char *db_name)
   m_ps_hostname = hosts.substr (0, col_pos);
   er_log_debug (ARG_FILE_LINE, "Page server hosts: %s port: %d\n", m_ps_hostname.c_str (), m_ps_port);
 
-  connect_to_page_server (m_ps_hostname, m_ps_port, db_name);
+  return connect_to_page_server (m_ps_hostname, m_ps_port, db_name);
 }
 
 int
@@ -120,6 +121,8 @@ active_tran_server::connect_to_page_server (const std::string &host, int port, c
 
   log_Gl.m_prior_sender.add_sink (std::bind (&active_tran_server::push_request, std::ref (*this),
 				  ats_to_ps_request::SEND_LOG_PRIOR_LIST, std::placeholders::_1));
+
+  return NO_ERROR;
 }
 
 void
