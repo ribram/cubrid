@@ -23,9 +23,11 @@
 #include "log_impl.h"
 #include "log_prior_send.hpp"
 #include "server_type.hpp"
+#include "system_parameter.h"
 
 #include <cassert>
 #include <functional>
+#include <string>
 
 active_tran_server ats_Gl;
 
@@ -33,7 +35,14 @@ static void assert_is_active_tran_server ();
 
 active_tran_server::~active_tran_server ()
 {
-  disconnect_page_server ();
+  if (get_server_type () == SERVER_TYPE_TRANSACTION && is_page_server_connected ())
+    {
+      disconnect_page_server ();
+    }
+  else
+    {
+      assert (m_ps_request_queue == nullptr && m_ps_request_autosend == nullptr);
+    }
 }
 
 void
