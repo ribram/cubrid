@@ -23,6 +23,7 @@
 #include "log_prior_recv.hpp"
 #include "packer.hpp"
 #include "server_type.hpp"
+#include "system_parameter.h"
 
 #include <cassert>
 #include <functional>
@@ -73,6 +74,10 @@ void
 page_server::receive_log_prior_list (cubpacking::unpacker &upk)
 {
   std::string message { upk.get_curr_ptr (), upk.get_current_size () };
+  if (prm_get_bool_value (PRM_ID_ER_LOG_PRIOR_TRANSFER))
+    {
+      _er_log_debug (ARG_FILE_LINE, "[LOG PRIOR TRANSFER] Received message with size %d.\n", message.size ());
+    }
   log_Gl.m_prior_recver.push_message (std::move (message));
 }
 

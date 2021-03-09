@@ -215,6 +215,7 @@ namespace cubcomm
   // Err logging functions
   void er_log_send_request (const channel &chn, int msgid, size_t size);
   void er_log_recv_request (const channel &chn, int msgid, size_t size);
+  void er_log_send_fail (const channel &chn, css_error_code err);
 }
 
 namespace cubcomm
@@ -386,7 +387,13 @@ namespace cubcomm
       {
 	return rc;
       }
-    return chn.send (eb.get_ptr (), packer.get_current_size ());
+
+    css_error_code csserr = chn.send (eb.get_ptr (), packer.get_current_size ());
+    if (csserr != NO_ERRORS)
+      {
+	er_log_send_fail (chn, csserr);
+      }
+    return csserr;
   }
 }
 
