@@ -105,18 +105,18 @@ active_tran_server::connect_to_page_server (const std::string &host, int port, c
   css_error_code comm_error_code = srv_chn.connect (host.c_str (), port, CMD_SERVER_SERVER_CONNECT);
   if (comm_error_code != css_error_code::NO_ERRORS)
     {
-      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_NET_PAGESERVER_CONNECTION, 1, host.c_str());
+      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_NET_PAGESERVER_CONNECTION, 1, host.c_str ());
       return ER_NET_PAGESERVER_CONNECTION;
     }
 
   if (!srv_chn.send_int (static_cast <int> (cubcomm::server_server::CONNECT_ACTIVE_TRAN_TO_PAGE_SERVER)))
     {
-      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_NET_PAGESERVER_CONNECTION, 1, host.c_str());
+      er_set (ER_ERROR_SEVERITY, ARG_FILE_LINE, ER_NET_PAGESERVER_CONNECTION, 1, host.c_str ());
       return ER_NET_PAGESERVER_CONNECTION;
     }
 
   er_log_debug (ARG_FILE_LINE, "Successfully connected to the page server. Channel id: %s.\n",
-		srv_chn.get_channel_id ());
+		srv_chn.get_channel_id ().c_str ());
 
   page_server_conn ps_conn (std::move (srv_chn));
   m_ps_request_queue = new page_server_request_queue (std::move (ps_conn));

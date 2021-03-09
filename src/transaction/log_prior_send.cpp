@@ -30,6 +30,9 @@ namespace cublog
 	return;
       }
     std::string message = prior_list_serialize (head);
+
+
+
     std::unique_lock<std::mutex> ulock (m_sink_hooks_mutex);
     for (auto &sink : m_sink_hooks)
       {

@@ -43,7 +43,7 @@ page_server::set_active_tran_server_connection (cubcomm::channel &&chn)
 
   chn.set_channel_name ("ATS_PS_comm");
   er_log_debug (ARG_FILE_LINE, "Active transaction server connected to this page server. Channel id: %s.\n",
-		chn.get_channel_id ());
+		chn.get_channel_id ().c_str ());
 
   m_ats_conn = new active_tran_server_conn (std::move (chn));
 
