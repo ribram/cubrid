@@ -457,9 +457,10 @@ enum param_id
   PRM_ID_SERVER_TYPE,
 
   PRM_ID_ER_LOG_PRIOR_TRANSFER,
+  PRM_ID_ER_LOG_COMM_REQUEST,
 
   /* change PRM_LAST_ID when adding new system parameters */
-  PRM_LAST_ID = PRM_ID_ER_LOG_PRIOR_TRANSFER
+  PRM_LAST_ID = PRM_ID_ER_LOG_COMM_REQUEST
 };
 typedef enum param_id PARAM_ID;
 

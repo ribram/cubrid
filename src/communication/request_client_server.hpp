@@ -211,6 +211,10 @@ namespace cubcomm
   // Helper function that packs MsgId & PackableArgs and sends them on chn
   template <typename MsgId, typename ... PackableArgs>
   int send_client_request (channel &chn, MsgId msgid, const PackableArgs &... args);
+
+  // Err logging functions
+  void er_log_send_request (const channel &chn, int msgid, size_t size);
+  void er_log_recv_request (const channel &chn, int msgid, size_t size);
 }
 
 namespace cubcomm
@@ -339,6 +343,7 @@ namespace cubcomm
 	assert (false);
 	return;
       }
+    er_log_recv_request (m_channel, static_cast<int> (msgid), message_size);
     req_handle_it->second (upk);
   }
 
@@ -373,6 +378,8 @@ namespace cubcomm
     packing_packer packer;
     cubmem::extensible_block eb;
     packer.set_buffer_and_pack_all (eb, static_cast<int> (msgid), args...);
+
+    er_log_send_request (chn, static_cast<int> (msgid), packer.get_current_size ());
 
     int rc = chn.send_int (static_cast<int> (packer.get_current_size ()));
     if (rc != NO_ERRORS)
