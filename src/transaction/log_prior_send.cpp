@@ -11,14 +11,17 @@
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
+ *  See the License for the specific language governing permissions andsa
  *  limitations under the License.
  *
  */
 
 #include "log_prior_send.hpp"
 
+#include "error_manager.h"
 #include "log_append.hpp"
+#include "log_lsa.hpp"
+#include "system_parameter.h"
 
 namespace cublog
 {
@@ -31,7 +34,12 @@ namespace cublog
       }
     std::string message = prior_list_serialize (head);
 
-
+    if (prm_get_bool_value (PRM_ID_ER_LOG_PRIOR_TRANSFER))
+      {
+	_er_log_debug (ARG_FILE_LINE,
+		       "[LOG PRIOR TRANSFER] Sending list starting with lsa %lld|%d. Message size = %zu.\n",
+		       LSA_AS_ARGS (&head->start_lsa), message.size ());
+      }
 
     std::unique_lock<std::mutex> ulock (m_sink_hooks_mutex);
     for (auto &sink : m_sink_hooks)

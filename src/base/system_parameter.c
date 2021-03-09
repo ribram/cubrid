@@ -6082,7 +6082,7 @@ static SYSPRM_PARAM prm_Def[] = {
    (DUP_PRM_FUNC) NULL},
   {PRM_ID_ER_LOG_PRIOR_TRANSFER,
    PRM_NAME_ER_LOG_PRIOR_TRANSFER,
-   (PRM_FOR_SERVER),
+   (PRM_FOR_SERVER | PRM_HIDDEN),
    PRM_BOOLEAN,
    &prm_er_log_prior_transfer_flag,
    (void *) &prm_er_log_prior_transfer_default,
