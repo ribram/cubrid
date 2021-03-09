@@ -62,7 +62,7 @@ namespace cubcomm
   }
 
   void
-  er_log_send_fail (const channel &chn, css_error_code err)
+  er_log_recv_fail (const channel &chn, css_error_code err)
   {
     return er_log_sendrecv_fail ("Receive", chn, err);
   }
