@@ -18,6 +18,7 @@
 
 #include "page_server.hpp"
 
+#include "error_manager.h"
 #include "log_impl.h"
 #include "log_prior_recv.hpp"
 #include "packer.hpp"
@@ -41,6 +42,9 @@ page_server::set_active_tran_server_connection (cubcomm::channel &&chn)
   assert_page_server_type ();
 
   chn.set_channel_name ("ATS_PS_comm");
+  er_log_debug (ARG_FILE_LINE, "Active transaction server connected to this page server. Channel id: %s.\n",
+		chn.get_channel_id ());
+
   m_ats_conn = new active_tran_server_conn (std::move (chn));
 
   m_ats_conn->register_request_handler (ats_to_ps_request::SEND_LOG_PRIOR_LIST,

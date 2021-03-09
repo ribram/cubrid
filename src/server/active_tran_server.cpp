@@ -115,6 +115,9 @@ active_tran_server::connect_to_page_server (const std::string &host, int port, c
       return ER_NET_PAGESERVER_CONNECTION;
     }
 
+  er_log_debug (ARG_FILE_LINE, "Successfully connected to the page server. Channel id: %s.\n",
+		srv_chn.get_channel_id ());
+
   page_server_conn ps_conn (std::move (srv_chn));
   m_ps_request_queue = new page_server_request_queue (std::move (ps_conn));
   m_ps_request_autosend = new page_server_request_autosend (*m_ps_request_queue);
