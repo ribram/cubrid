@@ -45,13 +45,25 @@ namespace cubcomm
     er_log_sendrecv_request ("Receive", chn, msgid, size);
   }
 
-  void
-  er_log_send_fail (const channel &chn, css_error_code err)
+  static void
+  er_log_sendrecv_fail (const char *sendrcv_str, const channel &chn, css_error_code err)
   {
     if (prm_get_bool_value (PRM_ID_ER_LOG_COMM_REQUEST))
       {
-	_er_log_debug (ARG_FILE_LINE, "[COMM REQUEST][%s] Send failed with error %d.\n", chn.get_channel_id (),
-		       static_cast<int> (err));
+	_er_log_debug (ARG_FILE_LINE, "[COMM REQUEST][%s] %s failed with error %d.\n",
+		       sendrcv_str, chn.get_channel_id (), static_cast<int> (err));
       }
+  }
+
+  void
+  er_log_send_fail (const channel &chn, css_error_code err)
+  {
+    return er_log_sendrecv_fail ("Send", chn, err);
+  }
+
+  void
+  er_log_send_fail (const channel &chn, css_error_code err)
+  {
+    return er_log_sendrecv_fail ("Receive", chn, err);
   }
 }

@@ -20,11 +20,9 @@
 #define _REQUEST_CLIENT_SERVER_HPP_
 
 #include "communication_channel.hpp"
-#include "error_manager.h"
 #include "mem_block.hpp"
 #include "object_representation_constants.h"
 #include "packer.hpp"
-#include "system_parameter.h"
 
 #include <functional>
 #include <map>
@@ -216,6 +214,7 @@ namespace cubcomm
   void er_log_send_request (const channel &chn, int msgid, size_t size);
   void er_log_recv_request (const channel &chn, int msgid, size_t size);
   void er_log_send_fail (const channel &chn, css_error_code err);
+  void er_log_recv_fail (const channel &chn, css_error_code err);
 }
 
 namespace cubcomm
@@ -310,6 +309,7 @@ namespace cubcomm
     css_error_code err = m_channel.recv_int (ilen);
     if (err != NO_ERRORS)
       {
+	er_log_recv_fail (m_channel, err);
 	return err;
       }
 
@@ -320,6 +320,7 @@ namespace cubcomm
     err = m_channel.recv (message_buffer.get (), receive_size);
     if (err != NO_ERRORS)
       {
+	er_log_recv_fail (m_channel, err);
 	return err;
       }
     assert (receive_size == expected_size);
