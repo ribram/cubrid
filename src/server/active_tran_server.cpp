@@ -121,6 +121,7 @@ active_tran_server::connect_to_page_server (const std::string &host, int port, c
   page_server_conn ps_conn (std::move (srv_chn));
   m_ps_request_queue = new page_server_request_queue (std::move (ps_conn));
   m_ps_request_autosend = new page_server_request_autosend (*m_ps_request_queue);
+  m_ps_request_autosend->start_thread ();
 
   log_Gl.m_prior_sender.add_sink (std::bind (&active_tran_server::push_request, std::ref (*this),
 				  ats_to_ps_request::SEND_LOG_PRIOR_LIST, std::placeholders::_1));

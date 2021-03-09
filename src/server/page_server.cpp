@@ -50,6 +50,8 @@ page_server::set_active_tran_server_connection (cubcomm::channel &&chn)
   m_ats_conn->register_request_handler (ats_to_ps_request::SEND_LOG_PRIOR_LIST,
 					std::bind (&page_server::receive_log_prior_list, std::ref (*this),
 					    std::placeholders::_1));
+
+  m_ats_conn->start_thread ();
 }
 
 void
