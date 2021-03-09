@@ -707,6 +707,10 @@ payload_with_op_count::get_packed_size (cubpacking::packer &serializator, std::s
 //
 // Mock CUBRID stuff
 //
+#include "error_manager.h"
+#include "system_parameter.h"
+#include "object_representation.h"
+
 void
 _er_log_debug (const char *file_name, const int line_no, const char *fmt, ...)
 {
