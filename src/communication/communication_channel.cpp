@@ -115,25 +115,33 @@ namespace cubcomm
   bool channel::send_int (int val)
   {
     int v = htonl (val);
-    return (::send (m_socket, reinterpret_cast<const char *> (&v), sizeof (v), 0) == sizeof (v));
+    bool ret = (::send (m_socket, reinterpret_cast<const char *> (&v), sizeof (v), 0) == sizeof (v));
+    er_log_chn_debug ("[%s] Send int value = %d %s.\n", get_channel_id ().c_str (), val,
+		      ret ? "successfully" : "failed");
+    return ret;
   }
 
   css_error_code channel::recv_int (int &received)
   {
     size_t len = sizeof (received);
-    auto rc = recv ((char *) &received, len);
-    if (rc != NO_ERRORS)
-      {
-	return rc;
-      }
 
-    if (len != sizeof (received))
+    size_t readlen = (size_t) css_readn (m_socket, reinterpret_cast<char *> (&received), (int) len,
+					 m_max_timeout_in_ms);
+    css_error_code error = NO_ERRORS;
+    if (readlen < 0)
       {
-	return css_error_code::ERROR_ON_COMMAND_READ;
+	error = css_error_code::ERROR_ON_COMMAND_READ;
       }
-
-    received = ntohl (received);
-    return NO_ERRORS;
+    else if (readlen != len)
+      {
+	error = css_error_code::READ_LENGTH_MISMATCH;
+      }
+    else
+      {
+	received = ntohl (received);
+      }
+    er_log_chn_debug ("[%s] Receive int value = %d, error = %d.\n", get_channel_id ().c_str (), received, error);
+    return error;
   }
 
   css_error_code channel::connect (const char *hostname, int port)
@@ -177,9 +185,9 @@ namespace cubcomm
 
   void channel::close_connection ()
   {
-    er_log_chn_debug ("[%s] Close connection.\n", get_channel_id ().c_str ());
     if (!IS_INVALID_SOCKET (m_socket))
       {
+	er_log_chn_debug ("[%s] Shutdown socket %d.\n", get_channel_id ().c_str (), m_socket);
 	css_shutdown_socket (m_socket);
 	m_socket = INVALID_SOCKET;
 	m_type = NO_TYPE;
