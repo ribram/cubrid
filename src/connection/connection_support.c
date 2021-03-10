@@ -614,6 +614,10 @@ css_net_recv (SOCKET fd, char *buffer, int *maxlen, int timeout)
   if (nbytes && (templen > nbytes))
     {
       css_read_remaining_bytes (fd, templen - nbytes);
+
+      er_print_callstack (ARG_FILE_LINE, "nbytes=%d, templen=%d, maxlen=%d, to_read=%d\n", nbytes, templen, *maxlen,
+			  length_to_read);
+
       return RECORD_TRUNCATED;
     }
 

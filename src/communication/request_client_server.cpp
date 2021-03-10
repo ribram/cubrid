@@ -51,7 +51,7 @@ namespace cubcomm
     if (prm_get_bool_value (PRM_ID_ER_LOG_COMM_REQUEST))
       {
 	_er_log_debug (ARG_FILE_LINE, "[COMM REQUEST][%s] %s failed with error %d.\n",
-		       sendrcv_str, chn.get_channel_id (), static_cast<int> (err));
+		       chn.get_channel_id (), sendrcv_str, static_cast<int> (err));
       }
   }
 
