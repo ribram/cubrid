@@ -29,7 +29,7 @@ namespace cubcomm
     if (prm_get_bool_value (PRM_ID_ER_LOG_COMM_REQUEST))
       {
 	_er_log_debug (ARG_FILE_LINE, "[COMM REQUEST][%s] %s request with id = %d and message size = %d.\n",
-		       sendrcv_str, chn.get_channel_id ().c_str (), msgid, size);
+		       chn.get_channel_id ().c_str (), sendrcv_str, msgid, size);
       }
   }
 
