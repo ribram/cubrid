@@ -1746,8 +1746,9 @@ prior_list_deserialize (const std::string &str, log_prior_node *&head, log_prior
 
   // iterate through str using ptr
   const char *ptr = str.c_str ();
+  const char *end_ptr = str.c_str () + str.size ();
 
-  while (ptr < str.c_str () + str.size ())
+  while (ptr < end_ptr)
     {
       log_prior_node *nodep = (log_prior_node *) malloc (sizeof (log_prior_node));
       assert (nodep != nullptr);

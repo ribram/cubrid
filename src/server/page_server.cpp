@@ -73,7 +73,7 @@ page_server::is_active_tran_server_connected () const
 void
 page_server::receive_log_prior_list (cubpacking::unpacker &upk)
 {
-  std::string message { upk.get_curr_ptr (), upk.get_current_size () };
+  std::string message { upk.get_curr_ptr (), upk.get_buffer_end () - upk.get_curr_ptr () };
   if (prm_get_bool_value (PRM_ID_ER_LOG_PRIOR_TRANSFER))
     {
       _er_log_debug (ARG_FILE_LINE, "[LOG PRIOR TRANSFER] Received message with size %d.\n", message.size ());
