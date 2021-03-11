@@ -74,4 +74,8 @@ void init_server_type (const char *)
   g_server_type = SERVER_TYPE_TRANSACTION;
 }
 
+void final_server_type ()
+{
+}
+
 #endif // !SERVER_MODE = SA_MODE
