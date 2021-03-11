@@ -22,6 +22,7 @@
 #include "communication_server_channel.hpp"
 #include "connection_defs.h"
 #include "error_manager.h"
+#include "page_server.hpp"
 #include "system_parameter.h"
 
 #include <string>
@@ -50,6 +51,19 @@ void init_server_type (const char *db_name)
   if (g_server_type == SERVER_TYPE_TRANSACTION)
     {
       ats_Gl.init_page_server_hosts (db_name);
+    }
+}
+
+void final_server_type ()
+{
+  if (get_server_type () == SERVER_TYPE_TRANSACTION)
+    {
+      ats_Gl.disconnect_page_server ();
+    }
+  else
+    {
+      assert (get_server_type () == SERVER_TYPE_PAGE);
+      ps_Gl.disconnect_active_tran_server ();
     }
 }
 
